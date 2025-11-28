@@ -1,8 +1,8 @@
 export default {
-  primary: "#60a5fa",     
-  background: "#0c1324",  
-  card: "#fff",        
-  text: "#f1f5f9",        
-  muted: "#94a3b8",       
-  danger: "#f87171",      
+  primary: "#3b82f6",       
+  background: "#0a0f1a",    
+  card: "#5F637D",          
+  text: "#f8fafc",          
+  muted: "#cbd5e1",         
+  danger: "#ef4444",        
 };

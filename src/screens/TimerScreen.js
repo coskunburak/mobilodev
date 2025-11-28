@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   AppState,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,10 +17,13 @@ import { useSessions } from "../context/SessionProvider";
 import colors from "../theme/colors";
 
 const DEFAULT_MINUTES = 25;
+const MIN_MINUTES = 1;
+const MAX_MINUTES = 180;
 
 export default function TimerScreen() {
   const { addSession } = useSessions();
 
+  // ---------- STATE ----------
   const [minutes, setMinutes] = useState(String(DEFAULT_MINUTES));
   const [remainingSec, setRemainingSec] = useState(DEFAULT_MINUTES * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -27,83 +33,117 @@ export default function TimerScreen() {
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [lastSummary, setLastSummary] = useState(null);
 
+  // ---------- REFS ----------
   const intervalRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
   const sessionStartRef = useRef(null);
+  const targetEndTsRef = useRef(null); // kesin bitiş (ms) – drift’i engeller
 
-  // Sayaç çalıştırma
-  useEffect(() => {
-    if (isRunning) {
-      if (!sessionStartRef.current) {
-        sessionStartRef.current = new Date();
-      }
+  // ---------- HELPERS ----------
+  const sanitizedMinutes = useMemo(() => {
+    const n = Number(minutes);
+    if (Number.isNaN(n)) return DEFAULT_MINUTES;
+    return Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, Math.floor(n)));
+  }, [minutes]);
 
-      intervalRef.current = setInterval(() => {
-        setRemainingSec((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current);
-            handleSessionEnd();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  const clearTick = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+  };
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning]);
+  const startTick = () => {
+    clearTick();
+    intervalRef.current = setInterval(() => {
+      if (targetEndTsRef.current == null) return;
+      const now = Date.now();
+      const diff = Math.max(0, Math.round((targetEndTsRef.current - now) / 1000));
+      setRemainingSec(diff);
+      if (diff <= 0) {
+        clearTick();
+        handleSessionEnd();
+      }
+    }, 250);
+  };
 
-  // AppState dinleme
+  // ---------- EFFECTS ----------
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
       if (
         appStateRef.current === "active" &&
         (nextState === "background" || nextState === "inactive")
       ) {
-        // Kullanıcı uygulamadan çıktı
         if (isRunning) {
-          setIsRunning(false);
-          setDistractionCount((c) => c + 1);
+          pauseTimer(true);
         }
       }
       appStateRef.current = nextState;
     });
-
     return () => sub.remove();
   }, [isRunning]);
 
+  useEffect(() => () => clearTick(), []);
+
+  // ---------- ACTIONS ----------
   const handleStart = () => {
-    const minsNumber = Number(minutes);
-    if (Number.isNaN(minsNumber) || minsNumber <= 0) {
+    if (Number.isNaN(Number(minutes)) || Number(minutes) <= 0) {
       Alert.alert("Hata", "Lütfen geçerli bir dakika değeri giriniz.");
       return;
     }
-    const totalSec = minsNumber * 60;
-    setRemainingSec((prev) => (prev === 0 ? totalSec : prev)); // sıfırlanmışsa tekrar yükle
-    setIsRunning(true);
+
+    if (!isRunning) {
+      const totalSec = sanitizedMinutes * 60;
+      const baseRemaining = remainingSec === 0 ? totalSec : remainingSec;
+
+      const now = Date.now();
+      targetEndTsRef.current = now + baseRemaining * 1000;
+
+      if (!sessionStartRef.current) {
+        sessionStartRef.current = new Date();
+      }
+      setIsRunning(true);
+      startTick();
+    }
+  };
+
+  const pauseTimer = (fromAppBackground = false) => {
+    setIsRunning(false);
+    clearTick();
+
+    if (targetEndTsRef.current != null) {
+      const now = Date.now();
+      const diff = Math.max(0, Math.round((targetEndTsRef.current - now) / 1000));
+      setRemainingSec(diff);
+    }
+
+    if (fromAppBackground) {
+      setDistractionCount((c) => c + 1);
+    }
   };
 
   const handlePause = () => {
-    setIsRunning(false);
+    pauseTimer(false);
   };
 
   const handleReset = () => {
     setIsRunning(false);
-    const minsNumber = Number(minutes) || DEFAULT_MINUTES;
-    setRemainingSec(minsNumber * 60);
+    clearTick();
+    const totalSec = sanitizedMinutes * 60;
+    setRemainingSec(totalSec);
     setDistractionCount(0);
     sessionStartRef.current = null;
+    targetEndTsRef.current = null;
   };
 
   const handleSessionEnd = () => {
     setIsRunning(false);
+    clearTick();
+
     const end = new Date();
     const start = sessionStartRef.current || end;
-    const actualSec = Math.round((end - start) / 1000);
-    const targetSec = Number(minutes) * 60;
+    const actualSec = Math.max(0, Math.round((end - start) / 1000));
+    const targetSec = sanitizedMinutes * 60;
 
     const session = {
       id: `${Date.now()}`,
@@ -120,9 +160,10 @@ export default function TimerScreen() {
     setLastSummary(session);
     setSummaryVisible(true);
 
-    // bir sonraki seans için reset
     setDistractionCount(0);
     sessionStartRef.current = null;
+    targetEndTsRef.current = null;
+    setRemainingSec(sanitizedMinutes * 60);
   };
 
   const formatTime = (sec) => {
@@ -133,82 +174,167 @@ export default function TimerScreen() {
     return `${m}:${s}`;
   };
 
+  // ---------- RENDER ----------
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Odaklanma Zamanlayıcısı</Text>
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={styles.container}>
+          <Text style={styles.title} accessibilityRole="header">
+            Odaklanma Zamanlayıcısı
+          </Text>
 
-      <Text style={styles.label}>Süre (dakika)</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={minutes}
-        onChangeText={(text) => {
-          setMinutes(text);
-          const val = Number(text) || 0;
-          setRemainingSec(val * 60);
-        }}
-      />
+          <View style={styles.card}>
+            <Text style={styles.label}>Süre (dakika)</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                keyboardType="number-pad"
+                value={minutes}
+                maxLength={3}
+                onChangeText={(text) => {
+                  const onlyDigits = text.replace(/[^0-9]/g, "");
+                  setMinutes(onlyDigits);
+                  const val = Number(onlyDigits);
+                  if (!Number.isNaN(val)) {
+                    const clamped = Math.min(
+                      MAX_MINUTES,
+                      Math.max(MIN_MINUTES, val || 0)
+                    );
+                    setRemainingSec(clamped * 60);
+                  } else {
+                    setRemainingSec(0);
+                  }
+                }}
+                placeholder={`${DEFAULT_MINUTES}`}
+                placeholderTextColor={colors.muted}
+                accessibilityLabel="Süreyi dakika olarak giriniz"
+                returnKeyType="done"
+              />
+              <Text style={styles.minSuffix}>dk</Text>
+            </View>
 
-      <Text style={styles.timerText}>{formatTime(remainingSec)}</Text>
+            <Text
+              style={styles.timerText}
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={`Kalan süre ${formatTime(remainingSec)}`}
+            >
+              {formatTime(remainingSec)}
+            </Text>
 
-      <CategoryPicker category={category} setCategory={setCategory} />
+            <View style={{ marginTop: 16 }}>
+              <CategoryPicker
+                category={category}
+                setCategory={setCategory}
+                accessibilityLabel="Kategori seçimi"
+              />
+            </View>
 
-      <Text style={styles.infoText}>
-        Dikkat Dağınıklığı Sayısı: {distractionCount}
-      </Text>
+            <Text
+              style={styles.infoText}
+              accessibilityLabel={`Dikkat dağınıklığı sayısı ${distractionCount}`}
+            >
+              Dikkat Dağınıklığı:{" "}
+              <Text style={styles.infoStrong}>{distractionCount}</Text>
+            </Text>
 
-      <TimerControls
-        onStart={handleStart}
-        onPause={handlePause}
-        onReset={handleReset}
-        isRunning={isRunning}
-      />
+            <View style={{ marginTop: 14 }}>
+              <TimerControls
+                onStart={handleStart}
+                onPause={handlePause}
+                onReset={handleReset}
+                isRunning={isRunning}
+              />
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
 
       <SessionSummaryModal
         visible={summaryVisible}
         onClose={() => setSummaryVisible(false)}
         summary={lastSummary}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: colors.background,
-    alignItems: "center",
-    paddingTop: 60,
+  },
+  container: {
+    flex: 1,
+    paddingTop: 12,
     paddingHorizontal: 16,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "700",
     color: colors.text,
-    marginBottom: 24,
+    textAlign: "center",
+    marginBottom: 12,
+    marginTop: 24,
+  },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.muted,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
   },
   label: {
-    alignSelf: "flex-start",
-    marginBottom: 4,
+    marginBottom: 6,
     color: colors.text,
-    fontWeight: 'bold '
+    fontWeight: "600",
+    fontWeight: 'bold',
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+
   },
   input: {
-    width: "100%",
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "black",
+    flex: 1,
+    backgroundColor: colors.background,
     color: colors.text,
-    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.muted,
+    fontSize: 16,
+    textAlign: "center",
+  },
+  minSuffix: {
+    marginLeft: 8,
+    color: colors.muted,
+    fontWeight: "600",
   },
   timerText: {
-    fontSize: 48,
+    marginTop: 16,
+    fontSize: 56,
+    lineHeight: 60,
     color: colors.primary,
-    marginTop: 8,
+    textAlign: "center",
+    fontVariant: ["tabular-nums"],
+    ...Platform.select({
+      android: { includeFontPadding: false },
+    }),
   },
   infoText: {
     color: colors.text,
     marginTop: 12,
     fontWeight: 'bold'
+  },
+  infoStrong: {
+    fontWeight: "700",
   },
 });

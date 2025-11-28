@@ -10,7 +10,7 @@ export default function TabNavigator(){
             <Tab.Screen
                 name = "Timer"
                 component = {TimerScreen}
-                options={{title: "Zamanlayıcı"}}
+                options={{ headerShown: false }}
             />
             <Tab.Screen
                 name = "Reports"
