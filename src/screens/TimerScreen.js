@@ -23,7 +23,6 @@ const MAX_MINUTES = 180;
 export default function TimerScreen() {
   const { addSession } = useSessions();
 
-  // ---------- STATE ----------
   const [minutes, setMinutes] = useState(String(DEFAULT_MINUTES));
   const [remainingSec, setRemainingSec] = useState(DEFAULT_MINUTES * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -33,13 +32,11 @@ export default function TimerScreen() {
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [lastSummary, setLastSummary] = useState(null);
 
-  // ---------- REFS ----------
   const intervalRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
   const sessionStartRef = useRef(null);
-  const targetEndTsRef = useRef(null); // kesin bitiş (ms) – drift’i engeller
+  const targetEndTsRef = useRef(null);
 
-  // ---------- HELPERS ----------
   const sanitizedMinutes = useMemo(() => {
     const n = Number(minutes);
     if (Number.isNaN(n)) return DEFAULT_MINUTES;
@@ -88,7 +85,7 @@ export default function TimerScreen() {
   // ---------- ACTIONS ----------
   const handleStart = () => {
     if (Number.isNaN(Number(minutes)) || Number(minutes) <= 0) {
-      Alert.alert("Hata", "Lütfen geçerli bir dakika değeri giriniz.");
+      Alert.alert("Hata", "Lütfen bir dakika değeri giriniz.");
       return;
     }
 
