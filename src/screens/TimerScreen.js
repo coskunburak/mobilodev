@@ -85,7 +85,7 @@ export default function TimerScreen() {
   // ---------- ACTIONS ----------
   const handleStart = () => {
     if (Number.isNaN(Number(minutes)) || Number(minutes) <= 0) {
-      Alert.alert("Hata", "Lütfen bir dakika değeri giriniz.");
+      Alert.alert("Hata", "Lütfen geçerli bir dakika değeri giriniz.");
       return;
     }
 

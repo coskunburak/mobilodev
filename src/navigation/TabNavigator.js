@@ -15,7 +15,7 @@ export default function TabNavigator(){
             <Tab.Screen
                 name = "Reports"
                 component = {ReportsScreen}
-                options = {{title: "Raporlar"}}
+                options = {{headerShown: false}}
             />
         </Tab.Navigator>
     );
