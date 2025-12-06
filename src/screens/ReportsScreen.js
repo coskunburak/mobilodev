@@ -1,20 +1,82 @@
-// src/screens/ReportsScreen.js
-import { useMemo } from "react";
-import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import {
+  Dimensions,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { BarChart, PieChart } from "react-native-chart-kit";
 import StatsCard from "../components/StatsCard";
 import { useSessions } from "../context/SessionProvider";
 import colors from "../theme/colors";
-import { getLastNDaysLabels, isSameDay } from "../utils/dateUtils";
+import { isSameDay } from "../utils/dateUtils";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
+const RANGE_OPTIONS = [
+  { key: "today", label: "Bugün" },
+  { key: "7d", label: "7 Gün" },
+  { key: "30d", label: "30 Gün" },
+  { key: "all", label: "Tümü" },
+];
+
 export default function ReportsScreen() {
   const { sessions } = useSessions();
-  const hasSessions = sessions.length > 0;
+  const [range, setRange] = useState("7d");
 
-  // ---------- TEMEL METRİKLER ----------
+  // ------------------ FİLTRELENMİŞ SEANSLAR ------------------
+  const filteredSessions = useMemo(() => {
+    if (range === "all") return sessions;
+
+    const today = new Date();
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+
+    if (range === "today") {
+      return sessions.filter((s) => isSameDay(s.startedAt, today));
+    }
+
+    const days = range === "7d" ? 7 : 30;
+    const from = new Date(todayStart.getTime() - (days - 1) * MS_PER_DAY);
+
+    return sessions.filter((s) => {
+      const d = new Date(s.startedAt);
+      const dayStart = new Date(d);
+      dayStart.setHours(0, 0, 0, 0);
+      return dayStart >= from && dayStart <= todayStart;
+    });
+  }, [sessions, range]);
+
+  const hasSessions = sessions.length > 0;
+  const hasFilteredSessions = filteredSessions.length > 0;
+
+  // ------------------ ÖZET METRİKLER ------------------
+  const totalSec = useMemo(
+    () => filteredSessions.reduce((sum, s) => sum + s.actualDurationSec, 0),
+    [filteredSessions]
+  );
+
+  const sessionCount = filteredSessions.length;
+
+  const averageSessionSec = useMemo(() => {
+    if (sessionCount === 0) return 0;
+    return totalSec / sessionCount;
+  }, [totalSec, sessionCount]);
+
+  const totalDistractions = useMemo(
+    () => filteredSessions.reduce((sum, s) => sum + (s.distractionCount || 0), 0),
+    [filteredSessions]
+  );
+
+  const averageDistractionPerSession = useMemo(() => {
+    if (sessionCount === 0) return 0;
+    return totalDistractions / sessionCount;
+  }, [totalDistractions, sessionCount]);
+
+  // Bugün & tüm zamanlar (karşılaştırma kartı için)
   const todayTotalSec = useMemo(() => {
     const today = new Date();
     return sessions
@@ -22,75 +84,79 @@ export default function ReportsScreen() {
       .reduce((sum, s) => sum + s.actualDurationSec, 0);
   }, [sessions]);
 
-  const todaySessionCount = useMemo(() => {
-    const today = new Date();
-    return sessions.filter((s) => isSameDay(s.startedAt, today)).length;
-  }, [sessions]);
-
   const allTimeTotalSec = useMemo(
     () => sessions.reduce((sum, s) => sum + s.actualDurationSec, 0),
     [sessions]
   );
 
-  const totalDistractions = useMemo(
-    () => sessions.reduce((sum, s) => sum + (s.distractionCount || 0), 0),
-    [sessions]
-  );
+  // ------------------ DİNAMİK GÜN SAYISI (GRAFİK) ------------------
+  // 30 Gün filtresinde 30 günlük grafik, diğerlerinde 7 günlük.
+  const chartDays = useMemo(() => {
+    if (range === "30d") return 30;
+    return 7;
+  }, [range]);
 
-  const averageSessionSec = useMemo(() => {
-    if (sessions.length === 0) return 0;
-    return allTimeTotalSec / sessions.length;
-  }, [allTimeTotalSec, sessions.length]);
-
-  const averageDistractionPerSession = useMemo(() => {
-    if (sessions.length === 0) return 0;
-    return totalDistractions / sessions.length;
-  }, [totalDistractions, sessions.length]);
-
-  // ---------- SON 7 GÜN BAR CHART ----------
-  const last7Labels = getLastNDaysLabels(7);
-
-  const last7Values = useMemo(() => {
+  // Etiket + değer: seçilen gün sayısına göre son N günü üret
+  const { chartLabels, chartValues } = useMemo(() => {
     const today = new Date();
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0); // bugünün 00:00'ı
 
-    const arr = new Array(7).fill(0); // dk
+    const labels = new Array(chartDays).fill("");
+    const values = new Array(chartDays).fill(0); // dakika cinsinden
 
-    sessions.forEach((s) => {
-      const d = new Date(s.startedAt);
-      const dayStart = new Date(d);
+    // index: 0..chartDays-1
+    // 0 → en eski gün, chartDays-1 → bugün
+    for (let index = 0; index < chartDays; index++) {
+      const offset = chartDays - 1 - index; // bugün - offset
+      const day = new Date(today.getTime() - offset * MS_PER_DAY);
+
+      const dayStart = new Date(day);
       dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(day);
+      dayEnd.setHours(23, 59, 59, 999);
 
-      const diffDays = Math.floor((todayStart - dayStart) / MS_PER_DAY);
-      if (diffDays >= 0 && diffDays < 7) {
-        const index = 6 - diffDays; // labels ile hizalama
-        arr[index] += s.actualDurationSec / 60; // dakika
-      }
-    });
-    return arr;
-  }, [sessions]);
+      const dNum = day.getDate();
+      const mNum = day.getMonth() + 1;
 
-  const hasWeeklyData = last7Values.some((v) => v > 0);
+      // 30/\n11 formatı → slash + alt satırda ay
+      labels[index] = `${dNum}/\n${mNum}`;
 
-  // ---------- KATEGORİ PIE CHART ----------
+      // o güne ait tüm seansların süresini topla
+      sessions.forEach((s) => {
+        const ts = new Date(s.startedAt);
+        if (ts >= dayStart && ts <= dayEnd) {
+          values[index] += s.actualDurationSec / 60; // dk
+        }
+      });
+    }
+
+    return { chartLabels: labels, chartValues: values };
+  }, [sessions, chartDays]);
+
+  const hasWeeklyData = chartValues.some((v) => v > 0);
+
+  // 30 günlük grafikte sıkışmayı azaltmak için genişliği dinamik yapalım
+  const chartWidth = Math.max(SCREEN_WIDTH - 32, chartDays * 28);
+
+
+  // ------------------ KATEGORİ PASTA GRAFİĞİ ------------------
   const categoryData = useMemo(() => {
     const map = {};
-    sessions.forEach((s) => {
+    filteredSessions.forEach((s) => {
       if (!map[s.category]) map[s.category] = 0;
-      map[s.category] += s.actualDurationSec / 60; // dk
+      map[s.category] += s.actualDurationSec / 60;
     });
 
     return Object.entries(map).map(([name, value], idx) => ({
       name,
-      population: value, // dk
+      population: value,
       color: getPieColor(idx),
       legendFontColor: "#f8fafc",
       legendFontSize: 12,
     }));
-  }, [sessions]);
+  }, [filteredSessions]);
 
-  // ---------- FORMAT HELPERS ----------
+  // ------------------ FORMAT HELPERS ------------------
   const formatMinutes = (sec) => `${Math.round(sec / 60)} dk`;
   const formatMinutesWithHours = (sec) => {
     const totalMin = Math.round(sec / 60);
@@ -100,11 +166,31 @@ export default function ReportsScreen() {
     return `${h} sa ${m} dk`;
   };
 
+  // ------------------ UI ------------------
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Raporlar</Text>
 
-      {/* Eğer hiç oturum yoksa kısa bilgi */}
+      {/* Range selector */}
+      <View style={styles.rangeRow}>
+        {RANGE_OPTIONS.map((opt) => {
+          const active = opt.key === range;
+          return (
+            <Pressable
+              key={opt.key}
+              onPress={() => setRange(opt.key)}
+              style={[styles.rangeChip, active && styles.rangeChipActive]}
+            >
+              <Text
+                style={[styles.rangeText, active && styles.rangeTextActive]}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       {!hasSessions && (
         <Text style={styles.emptyText}>
           Henüz kayıtlı seans yok. Zamanlayıcıyı kullanmaya başladığında
@@ -112,64 +198,85 @@ export default function ReportsScreen() {
         </Text>
       )}
 
-      {/* ÖZET KARTLAR */}
-      <StatsCard
-        title="Bugün Toplam Odaklanma"
-        value={formatMinutesWithHours(todayTotalSec)}
-        subtitle={`Oturum sayısı: ${todaySessionCount}`}
-      />
-      <StatsCard
-        title="Tüm Zamanlar Toplam Odaklanma"
-        value={formatMinutesWithHours(allTimeTotalSec)}
-        subtitle={`Toplam oturum: ${sessions.length}`}
-      />
-      <StatsCard
-        title="Ortalama Oturum Süresi"
-        value={formatMinutes(averageSessionSec)}
-        subtitle="Tüm oturumların ortalaması"
-      />
-      <StatsCard
-        title="Dikkat Dağınıklığı"
-        value={`${totalDistractions} kez`}
-        subtitle={`Oturum başına ortalama: ${averageDistractionPerSession.toFixed(
-          2
-        )}`}
-      />
+      {/* Özet grid (4 kart, 2x2) */}
+      <View style={styles.summaryGrid}>
+        <StatsCard
+          title="Seçili Aralık Toplam"
+          value={formatMinutesWithHours(totalSec)}
+          subtitle={`Oturum sayısı: ${sessionCount}`}
+          style={styles.summaryItem}
+        />
+        <StatsCard
+          title="Ortalama Oturum Süresi"
+          value={formatMinutes(averageSessionSec)}
+          subtitle="Seçili aralıktaki oturumlar"
+          style={styles.summaryItem}
+        />
+      </View>
+      <View style={styles.summaryGrid}>
+        <StatsCard
+          title="Dikkat Dağınıklığı"
+          value={`${totalDistractions} kez`}
+          subtitle={`Oturum başına ort.: ${averageDistractionPerSession.toFixed(
+            2
+          )}`}
+          style={styles.summaryItem}
+        />
+        <StatsCard
+          title="Bugün / Tüm Zamanlar"
+          value={`${formatMinutes(todayTotalSec)} • ${formatMinutesWithHours(
+            allTimeTotalSec
+          )}`}
+          subtitle="Bugün / tüm zamanlar karşılaştırma"
+          style={styles.summaryItem}
+        />
+      </View>
 
-      {/* SON 7 GÜN GRAFİĞİ */}
+      {/* Son N gün grafiği */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Son 7 Gün Odaklanma Süresi (dk)</Text>
+        <Text style={styles.cardTitle}>
+          Son {chartDays} Gün Odaklanma Süresi (dk)
+        </Text>
         {hasWeeklyData ? (
-          <BarChart
-            data={{
-              labels: last7Labels,
-              datasets: [{ data: last7Values }],
-            }}
-            width={SCREEN_WIDTH - 32}
-            height={220}
-            chartConfig={{
-              backgroundColor: colors.card,
-              backgroundGradientFrom: colors.card,
-              backgroundGradientTo: colors.card,
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-              labelColor: (opacity = 1) =>
-                `rgba(248, 250, 252, ${opacity})`,
-              propsForBackgroundLines: {
-                stroke: "rgba(148, 163, 184, 0.3)",
-              },
-            }}
-            style={{ borderRadius: 16 }}
-          />
-        ) : (
-          <Text style={styles.cardText}>Son 7 gün için veri bulunmuyor.</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 16 }}
+          >
+            <BarChart
+              data={{
+                labels: chartLabels,
+                datasets: [{ data: chartValues }],
+              }}
+              width={chartWidth}
+              height={180}
+              fromZero
+              chartConfig={{
+                backgroundColor: colors.card,
+                backgroundGradientFrom: colors.card,
+                backgroundGradientTo: colors.card,
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+                labelColor: (opacity = 1) =>
+                  `rgba(248, 250, 252, ${opacity})`,
+                propsForBackgroundLines: {
+                  stroke: "rgba(148, 163, 184, 0.3)",
+                },
+              }}
+              style={{ borderRadius: 16 }}
+            />
+          </ScrollView>
+        ) : ( 
+          <Text style={styles.cardText}>
+            Son {chartDays} gün için veri bulunmuyor.
+          </Text>
         )}
       </View>
 
-      {/* KATEGORİ PASTA GRAFİĞİ */}
+      {/* Kategori dağılımı */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Kategorilere Göre Dağılım</Text>
-        {categoryData.length > 0 ? (
+        {hasFilteredSessions && categoryData.length > 0 ? (
           <PieChart
             data={categoryData}
             width={SCREEN_WIDTH - 32}
@@ -187,7 +294,9 @@ export default function ReportsScreen() {
             }}
           />
         ) : (
-          <Text style={styles.cardText}>Henüz kayıtlı seans yok.</Text>
+          <Text style={styles.cardText}>
+            Seçili aralık için kategori verisi yok.
+          </Text>
         )}
       </View>
     </ScrollView>
@@ -209,11 +318,44 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "bold",
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
+    marginTop: 64
   },
   emptyText: {
     color: colors.muted,
     marginBottom: 12,
+  },
+  rangeRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+    gap: 8,
+  },
+  rangeChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.muted,
+  },
+  rangeChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  rangeText: {
+    fontSize: 12,
+    color: colors.muted,
+  },
+  rangeTextActive: {
+    color: "#ffffff",
+    fontWeight: "600",
+  },
+  summaryGrid: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  summaryItem: {
+    flex: 1,
   },
   card: {
     backgroundColor: colors.card,
@@ -222,7 +364,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "bold",
     color: colors.text,
     marginBottom: 8,

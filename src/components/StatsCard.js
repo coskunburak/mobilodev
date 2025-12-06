@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 import colors from "../theme/colors";
 
-export default function StatsCard({ title, value, subtitle }) {
+export default function StatsCard({ title, value, subtitle, style }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, style]}>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.value}>{value}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -15,14 +15,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.muted,
   },
   title: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.muted,
     marginBottom: 4,
   },
@@ -33,7 +32,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 4,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.muted,
   },
 });
