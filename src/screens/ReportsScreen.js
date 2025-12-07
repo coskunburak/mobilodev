@@ -90,7 +90,6 @@ export default function ReportsScreen() {
   );
 
   // ------------------ DİNAMİK GÜN SAYISI (GRAFİK) ------------------
-  // 30 Gün filtresinde 30 günlük grafik, diğerlerinde 7 günlük.
   const chartDays = useMemo(() => {
     if (range === "30d") return 30;
     return 7;
@@ -138,7 +137,6 @@ export default function ReportsScreen() {
   // 30 günlük grafikte sıkışmayı azaltmak için genişliği dinamik yapalım
   const chartWidth = Math.max(SCREEN_WIDTH - 32, chartDays * 28);
 
-
   // ------------------ KATEGORİ PASTA GRAFİĞİ ------------------
   const categoryData = useMemo(() => {
     const map = {};
@@ -168,8 +166,25 @@ export default function ReportsScreen() {
 
   // ------------------ UI ------------------
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Raporlar</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Raporlar</Text>
+          <Text style={styles.subtitle}>
+            Odaklanma istatistiklerin ve kategori dağılımın
+          </Text>
+        </View>
+
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {RANGE_OPTIONS.find((r) => r.key === range)?.label}
+          </Text>
+        </View>
+      </View>
 
       {/* Range selector */}
       <View style={styles.rangeRow}>
@@ -212,8 +227,6 @@ export default function ReportsScreen() {
           subtitle="Seçili aralıktaki oturumlar"
           style={styles.summaryItem}
         />
-      </View>
-      <View style={styles.summaryGrid}>
         <StatsCard
           title="Dikkat Dağınıklığı"
           value={`${totalDistractions} kez`}
@@ -266,7 +279,7 @@ export default function ReportsScreen() {
               style={{ borderRadius: 16 }}
             />
           </ScrollView>
-        ) : ( 
+        ) : (
           <Text style={styles.cardText}>
             Son {chartDays} gün için veri bulunmuyor.
           </Text>
@@ -312,34 +325,61 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+
+  // header
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    marginTop: 48, // tab header altında düzgün dursun
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "700",
     color: colors.text,
-    marginBottom: 12,
-    marginTop: 64
   },
-  emptyText: {
+  subtitle: {
+    fontSize: 12,
     color: colors.muted,
-    marginBottom: 12,
+    marginTop: 4,
   },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(148, 163, 184, 0.18)",
+    alignSelf: "flex-start",
+  },
+  badgeText: {
+    fontSize: 11,
+    color: colors.muted,
+    fontWeight: "500",
+  },
+
+  // range selector
   rangeRow: {
     flexDirection: "row",
-    marginBottom: 12,
-    gap: 8,
+    alignItems: "center",
+    alignSelf: "center",
+    padding: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
+    marginBottom: 16,
   },
   rangeChip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.muted,
   },
   rangeChipActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   rangeText: {
     fontSize: 12,
@@ -349,23 +389,41 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "600",
   },
-  summaryGrid: {
-    flexDirection: "row",
-    gap: 12,
+
+  emptyText: {
+    color: colors.muted,
     marginBottom: 12,
   },
-  summaryItem: {
-    flex: 1,
+
+  // summary cards
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
   },
+  summaryItem: {
+    flexBasis: "48%", // 2 sütun
+    flexGrow: 1,
+  },
+
+  // generic card
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.35)",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: "bold",
+    fontWeight: "600",
     color: colors.text,
     marginBottom: 8,
   },
