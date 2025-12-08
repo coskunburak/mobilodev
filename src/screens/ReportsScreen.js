@@ -67,7 +67,11 @@ export default function ReportsScreen() {
   }, [totalSec, sessionCount]);
 
   const totalDistractions = useMemo(
-    () => filteredSessions.reduce((sum, s) => sum + (s.distractionCount || 0), 0),
+    () =>
+      filteredSessions.reduce(
+        (sum, s) => sum + (s.distractionCount || 0),
+        0
+      ),
     [filteredSessions]
   );
 
@@ -91,9 +95,16 @@ export default function ReportsScreen() {
 
   // ------------------ DİNAMİK GÜN SAYISI (GRAFİK) ------------------
   const chartDays = useMemo(() => {
+    if (range === "today") return 1;   // ⬅️ bugün seçiliyken sadece 1 gün
     if (range === "30d") return 30;
     return 7;
   }, [range]);
+
+  // Başlık da range'e göre değişsin
+  const chartTitle = useMemo(() => {
+    if (range === "today") return "Bugün Odaklanma Süresi (dk)";
+    return `Son ${chartDays} Gün Odaklanma Süresi (dk)`;
+  }, [range, chartDays]);
 
   // Etiket + değer: seçilen gün sayısına göre son N günü üret
   const { chartLabels, chartValues } = useMemo(() => {
@@ -247,9 +258,7 @@ export default function ReportsScreen() {
 
       {/* Son N gün grafiği */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>
-          Son {chartDays} Gün Odaklanma Süresi (dk)
-        </Text>
+        <Text style={styles.cardTitle}>{chartTitle}</Text>
         {hasWeeklyData ? (
           <ScrollView
             horizontal
@@ -338,7 +347,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 12,
-    marginTop: 48, // tab header altında düzgün dursun
+    marginTop: 48,
   },
   title: {
     fontSize: 24,
@@ -403,7 +412,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   summaryItem: {
-    flexBasis: "48%", // 2 sütun
+    flexBasis: "48%",
     flexGrow: 1,
   },
 
