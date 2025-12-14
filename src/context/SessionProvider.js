@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import {
-    loadSessionsFromStorage,
-    saveSessionsToStorage,
+  loadSessionsFromStorage,
+  saveSessionsToStorage,
 } from "../storage/sessionStorage";
 
 const SessionContext = createContext(null);
 
-export function SessionProvider({ children }) {
+export const SessionProvider = ({ children }) => {
   const [sessions, setSessions] = useState([]);
 
   useEffect(() => {
@@ -30,12 +30,16 @@ export function SessionProvider({ children }) {
   };
 
   return (
-    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+    <SessionContext.Provider value={value}>
+      {children}
+    </SessionContext.Provider>
   );
-}
+};
 
-export function useSessions() {
+export const useSessions = () => {
   const ctx = useContext(SessionContext);
-  if (!ctx) throw new Error("useSessions must be used within SessionProvider");
+  if (!ctx) {
+    throw new Error("useSessions must be used within SessionProvider");
+  }
   return ctx;
-}
+};
