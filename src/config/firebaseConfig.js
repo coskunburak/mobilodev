@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBc4XHefn-igKfYJlB9d4vdqxcIYNeXmEM",
+  apiKey: "AIzaSyBC4XHefn-igKfYJlB9d4vdqxcIYNeXmEM",
   authDomain: "focus-app-tracker-78401.firebaseapp.com",
   projectId: "focus-app-tracker-78401",
   storageBucket: "focus-app-tracker-78401.firebasestorage.app",

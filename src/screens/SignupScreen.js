@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthProvider';
 import colors from '../theme/colors';
 
@@ -15,11 +15,17 @@ export default function SignupScreen({ navigation }) {
     setLoading(true);
     try {
       await signup(email, password);
-      // Başarılı
+      console.log("Kayıt başarılı!"); // Başarılı olursa bunu görürüz
     } catch (error) {
+      // Hatanın detayını terminale yazdırıyoruz:
+      console.log("KAYIT HATASI:", error.code, error.message); 
+      
       let msg = "Kayıt başarısız.";
       if(error.code === 'auth/email-already-in-use') msg = "Bu e-posta zaten kullanımda.";
-      if(error.code === 'auth/weak-password') msg = "Şifre en az 6 karakter olmalı.";
+      else if(error.code === 'auth/weak-password') msg = "Şifre en az 6 karakter olmalı.";
+      else if(error.code === 'auth/invalid-email') msg = "Geçersiz e-posta adresi.";
+      else msg = error.message; // Geliştirme aşamasında gerçek hatayı ekranda görmek için bunu ekle
+
       Alert.alert("Hata", msg);
     } finally {
       setLoading(false);
