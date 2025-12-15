@@ -1,5 +1,8 @@
 # Focus Tracker App
 
+(Projede Giriş yap ve kayıt ol sayfaları bulunmakta. Projede datastore vb yapılar kullanılmamıştır yalnızca Firebase Auth işlemleri yapılıdır ve bir kere giriş yapmanız yeterli. Yalnızca
+öğrenme amaçlı yapıldığından ötürü Mobil Uygulama proje raporunda bununla ilgili herhangi bir görev verilmediğinden bu kısım proje raporuna dahil edilmemiştir, yalnızca rn de bu yapıyı kullanmak istediğim için ekledim. Uygulama ilk açıldığında kayıt ol kısmında kayıt olup ana projeye erişebilirsiniz.)
+
 Focus Tracker App, dijital dikkat dağınıklığıyla mücadele etmek amacıyla geliştirilmiş bir mobil uygulamadır. Kullanıcının başlattığı odaklanma seanslarını takip eder, seans sırasında uygulamadan çıkılmasını **dikkat dağınıklığı** olarak algılar ve tüm bu verileri saklayarak kullanıcıya istatistiksel raporlar sunar.
 
 Bu proje **Expo + React Native** kullanılarak geliştirilmiştir ve MVP (Minimum Viable Product) gereksinimlerini eksiksiz karşılayacak şekilde tasarlanmıştır.
