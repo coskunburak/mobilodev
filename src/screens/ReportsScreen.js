@@ -27,7 +27,6 @@ export default function ReportsScreen() {
   const { sessions } = useSessions();
   const [range, setRange] = useState("7d");
 
-  // ------------------ FİLTRELENMİŞ SEANSLAR ------------------
   const filteredSessions = useMemo(() => {
     if (range === "all") return sessions;
 
@@ -53,7 +52,6 @@ export default function ReportsScreen() {
   const hasSessions = sessions.length > 0;
   const hasFilteredSessions = filteredSessions.length > 0;
 
-  // ------------------ ÖZET METRİKLER ------------------
   const totalSec = useMemo(
     () => filteredSessions.reduce((sum, s) => sum + s.actualDurationSec, 0),
     [filteredSessions]
@@ -93,9 +91,8 @@ export default function ReportsScreen() {
     [sessions]
   );
 
-  // ------------------ DİNAMİK GÜN SAYISI (GRAFİK) ------------------
   const chartDays = useMemo(() => {
-    if (range === "today") return 1;   // ⬅️ bugün seçiliyken sadece 1 gün
+    if (range === "today") return 1;   //bugün seçiliyken sadece 1 gün
     if (range === "30d") return 30;
     return 7;
   }, [range]);
@@ -135,7 +132,7 @@ export default function ReportsScreen() {
       sessions.forEach((s) => {
         const ts = new Date(s.startedAt);
         if (ts >= dayStart && ts <= dayEnd) {
-          values[index] += s.actualDurationSec / 60; // dk
+          values[index] += s.actualDurationSec / 60;
         }
       });
     }
@@ -145,10 +142,9 @@ export default function ReportsScreen() {
 
   const hasWeeklyData = chartValues.some((v) => v > 0);
 
-  // 30 günlük grafikte sıkışmayı azaltmak için genişliği dinamik yapalım
+  // 30 günlük grafikte sıkışmayı azaltmak için genişliği dinamik yaptım
   const chartWidth = Math.max(SCREEN_WIDTH - 32, chartDays * 28);
 
-  // ------------------ KATEGORİ PASTA GRAFİĞİ ------------------
   const categoryData = useMemo(() => {
     const map = {};
     filteredSessions.forEach((s) => {
@@ -165,7 +161,6 @@ export default function ReportsScreen() {
     }));
   }, [filteredSessions]);
 
-  // ------------------ FORMAT HELPERS ------------------
   const formatMinutes = (sec) => `${Math.round(sec / 60)} dk`;
   const formatMinutesWithHours = (sec) => {
     const totalMin = Math.round(sec / 60);
@@ -175,13 +170,11 @@ export default function ReportsScreen() {
     return `${h} sa ${m} dk`;
   };
 
-  // ------------------ UI ------------------
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
     >
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Raporlar</Text>
@@ -197,7 +190,6 @@ export default function ReportsScreen() {
         </View>
       </View>
 
-      {/* Range selector */}
       <View style={styles.rangeRow}>
         {RANGE_OPTIONS.map((opt) => {
           const active = opt.key === range;
@@ -224,7 +216,6 @@ export default function ReportsScreen() {
         </Text>
       )}
 
-      {/* Özet grid (4 kart, 2x2) */}
       <View style={styles.summaryGrid}>
         <StatsCard
           title="Seçili Aralık Toplam"
@@ -256,7 +247,6 @@ export default function ReportsScreen() {
         />
       </View>
 
-      {/* Son N gün grafiği */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{chartTitle}</Text>
         {hasWeeklyData ? (
@@ -295,7 +285,6 @@ export default function ReportsScreen() {
         )}
       </View>
 
-      {/* Kategori dağılımı */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Kategorilere Göre Dağılım</Text>
         {hasFilteredSessions && categoryData.length > 0 ? (
