@@ -20,7 +20,6 @@ export default function SignupScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // UX İyileştirmesi: Hangi inputun aktif olduğunu takip edelim
   const [focusedInput, setFocusedInput] = useState(null);
 
   const { signup } = useAuth();
@@ -196,7 +195,7 @@ const styles = StyleSheet.create({
       elevation: 8, // Android gölgesi
     },
     buttonText: { 
-      color: '#fff', // Primary üzerine genelde beyaz gider, colors.text koyuysa bunu değiştirebilirsin
+      color: '#fff', 
       fontSize: 16, 
       fontWeight: '700',
       letterSpacing: 0.5,
