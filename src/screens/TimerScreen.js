@@ -64,12 +64,11 @@ export default function TimerScreen() {
     }, 250);
   };
 
-  // ---------- EFFECTS ----------
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
       if (
         appStateRef.current === "active" &&
-        (nextState === "background" || nextState === "inactive")
+        (nextState === "background" || nextState === "inactive") //arkaplan kontrolü
       ) {
         if (isRunning) {
           pauseTimer(true);
@@ -82,7 +81,6 @@ export default function TimerScreen() {
 
   useEffect(() => () => clearTick(), []);
 
-  // ---------- ACTIONS ----------
   const handleStart = () => {
     if (Number.isNaN(Number(minutes)) || Number(minutes) <= 0) {
       Alert.alert("Hata", "Lütfen geçerli bir dakika değeri giriniz.");
@@ -115,7 +113,7 @@ export default function TimerScreen() {
     }
 
     if (fromAppBackground) {
-      setDistractionCount((c) => c + 1);
+      setDistractionCount((c) => c + 1); //dikkat dağınıklığını 1 artır
     }
   };
 
@@ -171,7 +169,6 @@ export default function TimerScreen() {
     return `${m}:${s}`;
   };
 
-  // ---------- RENDER ----------
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
