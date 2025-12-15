@@ -91,7 +91,7 @@ Günümüzde mobil cihazlar ve bildirimler, odaklanmayı zorlaştıran en büyü
 ### Kurulum
 ```bash
 git clone https://github.com/coskunburak/mobilodev
-cd focus-tracker-app
+cd mobilodev
 npm install
 npx expo start
 ```
